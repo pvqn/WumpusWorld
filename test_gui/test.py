@@ -1,0 +1,154 @@
+# Python
+import pygame
+import sys
+import time
+
+# Game settings
+FPS = 60
+CELL_SIZE = 40
+WIDTH, HEIGHT = CELL_SIZE * 10, CELL_SIZE * 10
+
+# Colors
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+GOLD = (255, 223, 0)
+# Initialize Pygame
+pygame.init()
+font = pygame.font.Font(None, 36)
+
+player_direction = 'v'  # Initial direction is upward
+
+
+player_surface = pygame.Surface((CELL_SIZE, CELL_SIZE))
+player_surface.fill(RED)
+
+
+# Initialize the window
+win = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Wumpus World")
+
+# Initialize game variables
+cave_size = 10
+player_position = [0, 0]
+visited_cells = [list(player_position)]
+wumpus_position = [2, 2]
+pit_positions = [[1, 1], [3, 3]]
+breeze_positions = [[x+dx, y+dy] for x, y in pit_positions for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)] if 0 <= x+dx < cave_size and 0 <= y+dy < cave_size]
+stench_positions = [[x+dx, y+dy] for x, y in [wumpus_position] for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)] if 0 <= x+dx < cave_size and 0 <= y+dy < cave_size]
+arrow = 10
+wumpus_alive = True
+move_delay = 0.2  # Delay between each move in seconds
+last_move_time = time.time()
+gold_position = [4, 4]  # Change this to the gold's position
+gold_captured = False
+
+while True:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LEFT:
+                if player_direction == '^':
+                    player_direction = '<'
+                elif player_direction == 'v':
+                    player_direction = '>'
+                elif player_direction == '<':
+                    player_direction = 'v'
+                elif player_direction == '>':
+                    player_direction = '^'
+            elif event.key == pygame.K_RIGHT:
+                if player_direction == '^':
+                    player_direction = '>'
+                elif player_direction == 'v':
+                    player_direction = '<'
+                elif player_direction == '<':
+                    player_direction = '^'
+                elif player_direction == '>':
+                    player_direction = 'v'
+            elif event.key == pygame.K_UP:
+                if player_direction == '^' and player_position[1] > 0:
+                    player_position[1] -= 1
+                elif player_direction == 'v' and player_position[1] < cave_size - 1:
+                    player_position[1] += 1
+                elif player_direction == '<' and player_position[0] > 0:
+                    player_position[0] -= 1
+                elif player_direction == '>' and player_position[0] < cave_size - 1:
+                    player_position[0] += 1
+            elif event.key == pygame.K_DOWN:
+                if player_direction == '^' and player_position[1] < cave_size - 1:
+                    player_direction = 'v'
+                    player_position[1] += 1
+                elif player_direction == 'v' and player_position[1] > 0:
+                    player_direction = '^'
+                    player_position[1] -= 1
+                elif player_direction == '<' and player_position[0] < cave_size - 1:
+                    player_direction = '>'
+                    player_position[0] += 1
+                elif player_direction == '>' and player_position[0] > 0:
+                    player_direction = '<'
+                    player_position[0] -= 1
+            elif event.key == pygame.K_SPACE:
+                    print(f"Space key pressed. Arrows left: {arrow}")
+                    if arrow:
+                        print("You shot an arrow!")
+                        if ((player_direction == '^' and wumpus_position[1] < player_position[1]) or
+                            (player_direction == 'v' and wumpus_position[1] > player_position[1]) or
+                            (player_direction == '<' and wumpus_position[0] < player_position[0]) or
+                            (player_direction == '>' and wumpus_position[0] > player_position[0])):
+                            wumpus_alive = False
+                        arrow -= 1
+            elif event.key == pygame.K_RETURN:
+                if player_position == gold_position:
+                    gold_captured = True
+                    print("You captured the gold!")
+
+    # Update visited cells
+    if list(player_position) not in visited_cells:
+        visited_cells.append(list(player_position))
+
+    # Update game state
+    if player_position in pit_positions:
+        print("You fell into a pit!")
+        break
+    elif player_position == wumpus_position and wumpus_alive:
+        print("You were eaten by the wumpus!")
+        break
+    elif not wumpus_alive:
+        print("You killed the wumpus!")
+        break
+    
+    if gold_captured:
+        print("You won the game!")
+        break
+
+    if player_position in breeze_positions or player_position in stench_positions:
+        player_surface.set_alpha(128)  # Semi-transparent
+    else:
+        player_surface.set_alpha(255)  # Opaque
+
+    # Draw game state
+    win.fill(BLACK)
+    for cell in visited_cells:
+        if cell == gold_position:
+            pygame.draw.rect(win, GOLD, (gold_position[0]*CELL_SIZE, gold_position[1]*CELL_SIZE, CELL_SIZE, CELL_SIZE))
+        else:
+            pygame.draw.rect(win, WHITE, (cell[0]*CELL_SIZE, cell[1]*CELL_SIZE, CELL_SIZE, CELL_SIZE))
+        if cell in breeze_positions and cell in stench_positions:
+            text = font.render('bs', True, (0, 0, 255))
+            win.blit(text, (cell[0]*CELL_SIZE, cell[1]*CELL_SIZE))
+        elif cell in breeze_positions:
+            text = font.render('b', True, (0, 0, 255))
+            win.blit(text, (cell[0]*CELL_SIZE, cell[1]*CELL_SIZE))
+        elif cell in stench_positions:
+            text = font.render('s', True, (255, 255, 0))
+            win.blit(text, (cell[0]*CELL_SIZE, cell[1]*CELL_SIZE))
+        
+    text = font.render(player_direction, True, RED)
+    text_rect = text.get_rect(center=(player_position[0]*CELL_SIZE + CELL_SIZE//2, player_position[1]*CELL_SIZE + CELL_SIZE//2))
+    win.blit(text, text_rect)
+    pygame.display.flip()
+
+
+    pygame.time.Clock().tick(FPS)
