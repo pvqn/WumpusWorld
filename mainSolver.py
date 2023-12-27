@@ -58,7 +58,7 @@ def CheckSaved( current_position ):
 
 def CustomSort( A, B ):
 
-    if percept_state[A[0]][A[1]][P] > 0 and percept_state[B[0]][B[1]][P] > 0:
+    if ( percept_state[A[0]][A[1]][P] > 0 and percept_state[A[0]][A[1]][W] in [None, 0] ) and ( percept_state[B[0]][B[1]][P] and percept_state[B[0]][B[1]][W] in [None, 0] ) > 0:
         if percept_state[A[0]][A[1]][P] < percept_state[B[0]][B[1]][P]: return -1
         elif percept_state[A[0]][A[1]][P] > percept_state[B[0]][B[1]][P]: return 1
         elif ManhattanDistance(A, agent_position) != ManhattanDistance(B, agent_position):
@@ -215,9 +215,14 @@ def FindPath( Goal ):
     return path
 
 def ShotArrow( position ):
-    global map_state
+    global map_state, percept_state
 
-    if( CheckState( position, W ) ): map_state[position[0]][position[1]] ^= ( 1 << W )
+    UpdatePercept( position, W, 0 )
+    if( CheckState( position, W ) ): 
+        map_state[position[0]][position[1]] ^= ( 1 << W )
+        return True
+    
+    return False
 
 def FindNextGoal():
 
@@ -232,19 +237,27 @@ def FindNextGoal():
         agent_position = step
         ReceivePercept( agent_position )
 
-    if( percept_state[Goal[0]][Goal[1]][W] > 0 ): ShotArrow( Goal )
+    if( percept_state[Goal[0]][Goal[1]][W] > 0 ): 
+        if ( ShotArrow( Goal ) ):
+            agent_position = Goal 
+            ReceivePercept( agent_position )
+            frontier.remove(Goal)
+        return
+    
     agent_position = Goal 
     ReceivePercept( agent_position )
-
     frontier.remove(Goal)
 
 def Solver():
 
-    global agent_position
+    global agent_position, frontier
 
     PreProcess()
+    frontier = sorted( frontier, key =  functools.cmp_to_key(CustomSort) )
 
-    while( len( frontier ) > 0 ): FindNextGoal()
+    while( len( frontier ) > 0 ):
+        FindNextGoal()
+        if( len( frontier ) > 0 and percept_state[map_size - 1][0][0] == 1 and percept_state[frontier[0][0]][frontier[0][1]][W] in [None, 0] and percept_state[frontier[0][0]][frontier[0][1]][P] not in [None, 0] ): break
     if( percept_state[map_size - 1][0][0] == 0 ): EndGame()
 
     path = FindPath( ( map_size - 1, 0 ) )
