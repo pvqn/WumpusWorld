@@ -143,8 +143,6 @@ def UpdateHint( current_position, index ):
 
         updateValue += 1
     
-    updateValue += 4 - len( GetNeighbor( current_position ) )
-    
     if( index == S ): percept_state[current_x][current_y] = ( percept_state[current_x][current_y][0], updateValue, percept_state[current_x][current_y][W], percept_state[current_x][current_y][B], percept_state[current_x][current_y][P] )
     if( index == B ): percept_state[current_x][current_y] = ( percept_state[current_x][current_y][0], percept_state[current_x][current_y][S], percept_state[current_x][current_y][W], updateValue, percept_state[current_x][current_y][P] )
 
@@ -368,7 +366,6 @@ def ReceivePercept( current_position ):
             if( percept_state[_x][_y][W] == 0 or percept_state[_x][_y][P] == 5 ): continue
 
             stench += 1
-        stench += 4 - len(GetNeighbor( current_position ))
 
     # Current position is breeze
     if( CheckState( current_position, B ) ):
@@ -379,8 +376,6 @@ def ReceivePercept( current_position ):
             if( percept_state[_x][_y][W] == 5 or percept_state[_x][_y][P] == 0 ): continue
 
             breeze += 1
-        
-        breeze += 4 - len(GetNeighbor( current_position ))
     
     # Update suspect
     percept_state[current_x][current_y] = ( visited, stench, wumpus, breeze, pit )
