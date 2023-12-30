@@ -6,9 +6,11 @@ from FileIO import read_file
 G, S, W, B, P = 0, 1, 2, 3, 4
 RIGHT, DOWN, LEFT, UP = 0, 1, 2, 3
 
-file_path = 'map.txt'
+file_path = 'hta.txt'
 map_size, map_layout = None, None
 agent_position, map_state, percept_state = None, None, None
+direction = 0               # Right: 0      Up: 1       Left: 2     Down: 3
+total_score = 0
 frontier = []
 
 # Explain for percept_state: ( visited, stench, wumpus, breeze, pit )
@@ -67,19 +69,19 @@ def CustomSort( A, B ):
     if( percept_state[A[0]][A[1]][P] > 0 ): return 1
     if( percept_state[B[0]][B[1]][P] > 0 ): return -1
 
-    if( ManhattanDistance( A, agent_position ) != ManhattanDistance( B, agent_position ) ):
-        if( ManhattanDistance( A, agent_position ) < ManhattanDistance( B, agent_position ) ): return -1
-        else: return 1
-
     if( not CheckSaved(A) or not CheckSaved(B) ):
         if( not CheckSaved(B) ): return -1
+        else: return 1
+
+    if( ManhattanDistance( A, agent_position ) != ManhattanDistance( B, agent_position ) ):
+        if( ManhattanDistance( A, agent_position ) < ManhattanDistance( B, agent_position ) ): return -1
         else: return 1
 
     A = percept_state[A[0]][A[1]]
     B = percept_state[B[0]][B[1]]
     
-    if( A[W] + A[P] != B[W] + B[P] ):
-        if( A[W] + A[P] < B[W] + B[P] ): return - 1
+    if( A[W] != B[W] and A[W] > 0 and B[W] > 0 ):
+        if( A[W] > B[W] ): return - 1
         else: return 1
     
     return 0
@@ -171,18 +173,6 @@ def EntailDanger( current_position ):
 
 # ========================================================== Action function ================================================================
 
-def MoveOneStep( index ):
-    global agent_position
-
-    if ( index not in [UP, RIGHT, DOWN, LEFT] ): return
-
-    moveX = [0, 1, 0, -1]
-    moveY = [1, 0, -1, 0]
-
-    agent_position = ( agent_position[0] + moveX[index], agent_position[1] + moveY[index] )
-
-    ReceivePercept( agent_position )
-
 def FindPath( Goal ):
 
     expanded = Queue()
@@ -214,15 +204,61 @@ def FindPath( Goal ):
 
     return path
 
+def MoveOneStep( position ):
+    global agent_position, total_score
+
+    if( position == agent_position ): return
+    total_score -= 10
+
+    agent_position = position
+    CollectGold( agent_position )
+    ReceivePercept( agent_position )
+
 def ShotArrow( position ):
-    global map_state, percept_state
+    global map_state, percept_state, total_score
 
     UpdatePercept( position, W, 0 )
+    print('Shot arrow')
+    total_score -= 100
+
     if( CheckState( position, W ) ): 
         map_state[position[0]][position[1]] ^= ( 1 << W )
+        print('Wumpus screammmmmmmmm')
         return True
     
     return False
+
+def CollectGold( position ):
+    global map_state, total_score
+
+    if( CheckState( position, G ) ):
+        map_state[position[0]][position[1]] ^= ( 1 << G )
+        total_score += 1000
+        print('Collect gold')
+
+def TurnAround( position, goal_position ):
+
+    global direction
+    direct_map = [ ( 0, 1 ), ( -1, 0 ), ( 0, -1 ), ( 1, 0 ) ]
+    direct = ( goal_position[0] - position[0], goal_position[1] - position[1] )
+
+    if( direct == ( 0, 0 ) ): return
+
+    if( direct == direct_map[direction] ): return
+    if( direct == direct_map[(direction + 1) % 4] ):
+        direction = (direction + 1) % 4
+        print('Turn left')
+        return
+    if( direct == direct_map[(direction + 3) % 4] ):
+        direction = (direction + 3) % 4
+        print('Turn right')
+        return
+    
+    direction = ( direction + 2 ) % 4
+    print('Turn right')
+    print('Turn right')
+    return
+
 
 def FindNextGoal():
 
@@ -234,8 +270,8 @@ def FindNextGoal():
     # Go to that goal
     path = FindPath( Goal )
     for step in path: 
-        agent_position = step
-        ReceivePercept( agent_position )
+        TurnAround( agent_position, step )
+        MoveOneStep( step )
 
     if( percept_state[Goal[0]][Goal[1]][W] > 0 ): 
         if ( ShotArrow( Goal ) ):
@@ -244,8 +280,7 @@ def FindNextGoal():
             frontier.remove(Goal)
         return
     
-    agent_position = Goal 
-    ReceivePercept( agent_position )
+    MoveOneStep( Goal )
     frontier.remove(Goal)
 
 def Solver():
@@ -262,12 +297,11 @@ def Solver():
 
     path = FindPath( ( map_size - 1, 0 ) )
     for step in path: 
-        agent_position = step
-        ReceivePercept( agent_position )
+        TurnAround( agent_position, step )
+        MoveOneStep( step )
     
     if( percept_state[map_size - 1][0][W] > 0 ): ShotArrow( ( map_size - 1, 0 ) )
-    agent_position = ( map_size - 1, 0 ) 
-    ReceivePercept( agent_position )
+    MoveOneStep( ( map_size - 1, 0 ) )
 
     Win()
 
@@ -277,7 +311,12 @@ def EndGame():
     exit()
 
 def Win():
-    print('Win')
+    global total_score
+
+    total_score += 10
+
+    print( 'Exit dungeon' )
+    print( 'Total score: ', total_score )
     exit()
 # ===========================================================================================================================================
 
@@ -295,23 +334,19 @@ def PreProcess() :
     # Process
     for _ in range(map_size):
         for __ in range(map_size):
-            if( map_layout[_][__] == 'A' ): agent_position = ( _, __ )
-            if( map_layout[_][__] in ['W', 'P'] ):
-                if( map_layout[_][__] == 'W' ):
-                    map_state[_][__] |= ( 1 << W )
-                    if( _ < map_size - 1 ): map_state[_ + 1][__] |= ( 1 << S )
-                    if( _ > 0 ): map_state[_ - 1][__] |= ( 1 << S )
-                    if( __ < map_size - 1 ): map_state[_][__ + 1] |= ( 1 << S )
-                    if( __ > 0 ): map_state[_][__ - 1] |= ( 1 << S )
-                    continue
-                if( map_layout[_][__] == 'P' ):
-                    map_state[_][__] |= ( 1 << P )
-                    if( _ < map_size - 1 ): map_state[_ + 1][__] |= ( 1 << B )
-                    if( _ > 0 ): map_state[_ - 1][__] |= ( 1 << B )
-                    if( __ < map_size - 1 ): map_state[_][__ + 1] |= ( 1 << B )
-                    if( __ > 0 ): map_state[_][__ - 1] |= ( 1 << B )
-                    continue
-            if( map_layout[_][__] == 'G' ): map_state[_][__] |= ( 1 << G )
+            if( 'A' in map_layout[_][__]  ): 
+                agent_position = ( _, __ )
+                map_layout[_][__].replace( 'A', '')
+
+    for _ in range(map_size):
+        for __ in range(map_size):
+            if( 'W' in map_layout[_][__] ):
+                map_state[_][__] |= ( 1 << W )
+                for _x, _y in GetNeighbor( ( _, __ ) ): map_state[_x][_y] |= ( 1 << S )
+            if( 'P' in map_layout[_][__] ):
+                map_state[_][__] |= ( 1 << P )
+                for _x, _y in GetNeighbor( ( _, __ ) ): map_state[_x][_y] |= ( 1 << B )
+            if( 'G' in map_layout[_][__] ): map_state[_][__] |= ( 1 << G )
     
     # Start percept
     ReceivePercept( agent_position )
@@ -344,10 +379,10 @@ def ReceivePercept( current_position ):
     # If current position do not have any hint
     if( not ( CheckState( current_position, S ) or CheckState( current_position, B ) ) ):
 
-        for _x, _y in GetNeighbor( current_position ):
+        for position in GetNeighbor( current_position ):
 
-            UpdatePercept( ( _x, _y ), W, 0 )
-            UpdatePercept( ( _x, _y ), P, 0 )
+            UpdatePercept( position, W, 0 )
+            UpdatePercept( position, P, 0 )
         
         percept_state[current_x][current_y] = ( visited, stench, wumpus, breeze, pit )
 
@@ -366,6 +401,8 @@ def ReceivePercept( current_position ):
             if( percept_state[_x][_y][W] == 0 or percept_state[_x][_y][P] == 5 ): continue
 
             stench += 1
+    else: 
+        for position in GetNeighbor( current_position ): UpdatePercept( position, W, 0 )
 
     # Current position is breeze
     if( CheckState( current_position, B ) ):
@@ -376,6 +413,8 @@ def ReceivePercept( current_position ):
             if( percept_state[_x][_y][W] == 5 or percept_state[_x][_y][P] == 0 ): continue
 
             breeze += 1
+    else: 
+        for position in GetNeighbor( current_position ): UpdatePercept( position, P, 0 )
     
     # Update suspect
     percept_state[current_x][current_y] = ( visited, stench, wumpus, breeze, pit )
