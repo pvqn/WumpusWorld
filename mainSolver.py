@@ -169,6 +169,17 @@ def EntailDanger( current_position ):
                 UpdatePercept( ( _x, _y ), P, 5 )
 
                 frontier.remove( ( _x, _y ) )
+
+def NotKillThisWumpus( current_position ):
+
+    current_x, current_y = current_position
+    if( percept_state[current_x][current_y][W] in [0, None] ): return False
+    if( len(GetNeighbor( current_position )) < 4 ): return False
+
+    for _x, _y in GetNeighbor( current_position ):
+        if( percept_state[_x][_y][0] == 0 and ( percept_state[_x][_y][P] not in [0, 5] or percept_state[_x][_y][W] not in [0, 5] ) ): return True
+    
+    return False
                 
 
 # ========================================================== Action function ================================================================
@@ -264,6 +275,9 @@ def FindNextGoal():
 
     global frontier, agent_position
 
+    for position in frontier:
+        if( NotKillThisWumpus( position ) ): frontier.remove( position )
+
     frontier = sorted( frontier, key =  functools.cmp_to_key(CustomSort) )
     # Get the next goal
     Goal = frontier[0]
@@ -289,6 +303,7 @@ def Solver():
 
     PreProcess()
     frontier = sorted( frontier, key =  functools.cmp_to_key(CustomSort) )
+    CollectGold( agent_position )
 
     while( len( frontier ) > 0 ):
         FindNextGoal()
@@ -349,6 +364,7 @@ def PreProcess() :
             if( 'G' in map_layout[_][__] ): map_state[_][__] |= ( 1 << G )
     
     # Start percept
+    CollectGold( agent_position )
     ReceivePercept( agent_position )
 
 def ReceivePercept( current_position ):
