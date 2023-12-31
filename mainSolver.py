@@ -287,6 +287,8 @@ def FindNextGoal():
         TurnAround( agent_position, step )
         MoveOneStep( step )
 
+    TurnAround( agent_position, Goal )
+
     if( percept_state[Goal[0]][Goal[1]][W] > 0 ): 
         if ( ShotArrow( Goal ) ):
             agent_position = Goal 
@@ -314,6 +316,8 @@ def Solver():
     for step in path: 
         TurnAround( agent_position, step )
         MoveOneStep( step )
+    
+    TurnAround( agent_position, ( map_size - 1, 0 ) )
     
     if( percept_state[map_size - 1][0][W] > 0 ): ShotArrow( ( map_size - 1, 0 ) )
     MoveOneStep( ( map_size - 1, 0 ) )
