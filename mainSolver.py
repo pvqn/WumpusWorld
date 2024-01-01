@@ -148,6 +148,16 @@ def UpdateHint( current_position, index ):
     if( index == S ): percept_state[current_x][current_y] = ( percept_state[current_x][current_y][0], updateValue, percept_state[current_x][current_y][W], percept_state[current_x][current_y][B], percept_state[current_x][current_y][P] )
     if( index == B ): percept_state[current_x][current_y] = ( percept_state[current_x][current_y][0], percept_state[current_x][current_y][S], percept_state[current_x][current_y][W], updateValue, percept_state[current_x][current_y][P] )
 
+def UpdateSmell( current_position ):
+    global map_state
+
+    for position in GetNeighbor( current_position ):
+        if( CheckState( position, S ) ): map_state[position[0]][position[1]] ^= ( 1 << S )
+        for _ in GetNeighbor( position ):
+            if( CheckState( _, W ) ):
+                map_state[position[0]][position[1]] ^= ( 1 << S )
+                break
+
 # ===================================================
     
 def EntailDanger( current_position ):
@@ -234,6 +244,7 @@ def ShotArrow( position ):
 
     if( CheckState( position, W ) ): 
         map_state[position[0]][position[1]] ^= ( 1 << W )
+        UpdateSmell( position )
         print('Wumpus screammmmmmmmm')
         return True
     
@@ -291,6 +302,7 @@ def FindNextGoal():
 
     if( percept_state[Goal[0]][Goal[1]][W] > 0 ): 
         if ( ShotArrow( Goal ) ):
+            ReceivePercept( agent_position )
             agent_position = Goal 
             ReceivePercept( agent_position )
             frontier.remove(Goal)
@@ -319,7 +331,9 @@ def Solver():
     
     TurnAround( agent_position, ( map_size - 1, 0 ) )
     
-    if( percept_state[map_size - 1][0][W] > 0 ): ShotArrow( ( map_size - 1, 0 ) )
+    if( percept_state[map_size - 1][0][W] > 0 ): 
+        ShotArrow( ( map_size - 1, 0 ) )
+        ReceivePercept( agent_position )
     MoveOneStep( ( map_size - 1, 0 ) )
 
     Win()
