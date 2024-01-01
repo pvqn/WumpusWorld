@@ -168,13 +168,13 @@ def EntailDanger( current_position ):
 
     if( percept_state[current_x][current_y][S] == 1 ):
         for _x, _y in GetNeighbor( current_position ): 
-            if( percept_state[_x][_y][W] > 0 ): 
+            if( percept_state[_x][_y][W] != 0 ): 
                 UpdatePercept( ( _x, _y ), W, 5 )
                 UpdatePercept( ( _x, _y ), P, 0 )
     
     if( percept_state[current_x][current_y][B] == 1 ):
         for _x, _y in GetNeighbor( current_position ): 
-            if( percept_state[_x][_y][P] > 0 ): 
+            if( percept_state[_x][_y][P] != 0 ): 
                 UpdatePercept( ( _x, _y ), W, 0 )
                 UpdatePercept( ( _x, _y ), P, 5 )
 
