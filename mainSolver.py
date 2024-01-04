@@ -235,12 +235,17 @@ def MoveOneStep( position ):
     CollectGold( agent_position )
     ReceivePercept( agent_position )
 
+    print( 'ACTION   States.FORWARD ', agent_position[0], agent_position[1] )
+    print( 'Score: ', total_score )
+
 def ShotArrow( position ):
     global map_state, percept_state, total_score
 
     UpdatePercept( position, W, 0 )
-    print('Shot arrow')
     total_score -= 100
+
+    print('ACTION   States.SHOT ', agent_position[0], agent_position[1])
+    print('Score: ', total_score)
 
     if( CheckState( position, W ) ): 
         map_state[position[0]][position[1]] ^= ( 1 << W )
@@ -256,7 +261,8 @@ def CollectGold( position ):
     if( CheckState( position, G ) ):
         map_state[position[0]][position[1]] ^= ( 1 << G )
         total_score += 1000
-        print('Collect gold')
+        print('ACTION   States.COLLECT ', agent_position[0], agent_position[1])
+        print('Score: ', total_score )
 
 def TurnAround( position, goal_position ):
 
@@ -269,16 +275,16 @@ def TurnAround( position, goal_position ):
     if( direct == direct_map[direction] ): return
     if( direct == direct_map[(direction + 1) % 4] ):
         direction = (direction + 1) % 4
-        print('Turn left')
+        print('ACTION   States.LEFT ', agent_position[0], agent_position[1])
         return
     if( direct == direct_map[(direction + 3) % 4] ):
         direction = (direction + 3) % 4
-        print('Turn right')
+        print('ACTION   States.RIGHT ', agent_position[0], agent_position[1])
         return
     
     direction = ( direction + 2 ) % 4
-    print('Turn right')
-    print('Turn right')
+    print('ACTION   States.RIGHT ', agent_position[0], agent_position[1])
+    print('ACTION   States.RIGHT ', agent_position[0], agent_position[1])
     return
 
 
@@ -393,7 +399,7 @@ def ReceivePercept( current_position ):
     
     visited, stench, wumpus, breeze, pit = percept_state[current_x][current_y]
 
-    print( current_position )
+    # print( current_position )
 
     # :333333333333333333333333333 End game :33333333333333333333333333333
     if( CheckState( current_position, W ) or CheckState( current_position, P ) ): EndGame()
@@ -471,3 +477,4 @@ def ReceivePercept( current_position ):
 
 
 Solver()
+
