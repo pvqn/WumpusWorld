@@ -17,7 +17,7 @@ GOLD = (255, 223, 0)
 pygame.init()
 font = pygame.font.Font(None, 36)
 
-player_direction = 'v'  # Initial direction is upward
+player_direction = '>'  # Initial direction is upward
 
 
 player_surface = pygame.Surface((CELL_SIZE, CELL_SIZE))
