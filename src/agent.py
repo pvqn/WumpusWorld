@@ -34,7 +34,8 @@ class AgentBrain:
         self.give_up = False
         self.goal = None
 
-        self.dangerous_cells = []
+        self.path = []
+        self.percepts = []
 
     def __quay_deu_quay_deu(self, new_direction: Directions):
         from_int = self.cur_direction.value
@@ -51,9 +52,6 @@ class AgentBrain:
         while c_from != c_to:
             c_from = (c_from - 1) % 4
             counter_clock_wise += 1
-
-        # print('Clockwise', clock_wise)
-        # print('Counter clockwise', counter_clock_wise)
 
         if clock_wise < counter_clock_wise:
             return States.RIGHT, clock_wise
@@ -181,29 +179,25 @@ class AgentBrain:
         self.kb.add_clause([literal(PIT, cell.x, cell.y, cell.is_pit)])
         self.kb.add_clause([literal(WUMPUS, cell.x, cell.y, cell.is_wumpus)])
 
-    def __kill_wumpus(self, cell):
-        self.kb.add_clause([literal(WUMPUS, cell.x, cell.y, False)])
-
-        clause = [literal(STENCH, cell.x, cell.y, False)]
-
-        for neighbor in self.__get_neighbors(cell):
-            clause.append(literal(WUMPUS, neighbor.x, neighbor.y, True))
-
-        self.kb.remove_clause(clause)
-
-        for neighbor in self.__get_neighbors(cell):
-            self.kb.remove_clause([literal(WUMPUS, neighbor.x, neighbor.y, False),
-                                   literal(STENCH, cell.x, cell.y, True)])
-
     def __add_action(self, action, pos):
+        convert = self.wumpus_map.dl_to_tb(pos.x, pos.y)
+
+        x, y = convert[0], convert[1]
+
         if self.verbose:
-            print("ACTION\t", action, pos.x, pos.y)
+            print("ACTION\t", action, x, y)
+
+        self.percepts.append((action, x, y))
+
+        if self.output_file:
+            self.output_file.write(f'{action} {x} {y}\n')
 
         if action == States.FORWARD:
             self.score -= 10
             if self.verbose:
                 print("Score:", self.score)
             self.actions.append('FORWARD')
+            self.path.append((x, y))
 
         elif action == States.LEFT:
             self.actions.append('LEFT')
@@ -216,6 +210,7 @@ class AgentBrain:
             if self.verbose:
                 print("Score:", self.score)
             self.actions.append('CLIMB')
+            self.path.append((x, y))
 
         elif action == States.GRAB:
             self.score += 1000
@@ -293,17 +288,20 @@ class AgentBrain:
 
         if cell.is_wumpus:
             self.__add_action(States.KILLED_BY_WUMPUS, cell)
-            print('KILLED BY WUMPUS')
+            if self.verbose:
+                print('KILLED BY WUMPUS')
             return False
 
         if cell.is_pit:
             self.__add_action(States.FALL_INTO_PIT, cell)
-            print('FALL INTO PIT')
+            if self.verbose:
+                print('FALL INTO PIT')
             return False
 
         if cell.is_gold:
             self.__add_action(States.GRAB, cell)
-            print('GOT GOLD')
+            if self.verbose:
+                print('GOT GOLD')
             cell.grab_gold()
 
         if cell.is_breeze:
@@ -324,41 +322,56 @@ class AgentBrain:
         # Store this call for later save parent
         tmp_parent = cell
 
+        tmp_neighbors = []
+
         if not cell.is_safe():
             # Get all the non-pit neighbors
             neighbors = [n for n in neighbors
                          if not n.is_explored and not n.is_pit]
 
-            uncertain_neighbors = []
+            tmp_neighbors = []
 
             if cell.has_stench():
                 for n in neighbors:
                     if self.kb.infer(literal(WUMPUS, n.x, n.y, False)):
                         self.__rotate(self.__get_direction(n))
+
                         self.__add_action(States.DETECTED_WUMPUS, cell)
                         self.__add_action(States.SHOOT, cell)
-                        self.wumpus_map.kill_wumpus(n.x, n.y)
-                        
-                        self.__kill_wumpus(cell)
                         self.__add_action(
-                                States.PERCEPT_WUMPUS_KILLED, cell)
-                        n.kill_wumpus()
-                        cell.update_stench()
+                            States.PERCEPT_WUMPUS_KILLED, cell)
+
+                        self.wumpus_map.kill_wumpus(n.x, n.y)
 
                         if not cell.has_stench():
-                            break
-                            
+                            '''
+                            S -> W v W v W v W
+                            '''
+
+                            clause = [literal(STENCH, cell.x, cell.y, False)]
+
+                            for neighbor in self.__get_neighbors(cell):
+                                clause.append(
+                                    literal(WUMPUS, neighbor.x, neighbor.y, True))
+
+                            self.kb.remove_clause(clause)
+
+                            self.kb.remove_clause([
+                                literal(STENCH, cell.x, cell.y, True)
+                            ])
+
+                            self.kb.add_clause([
+                                literal(STENCH, cell.x, cell.y, False)
+                            ])
                     else:
                         if self.kb.infer(literal(WUMPUS, n.x, n.y, True)):
                             self.__add_action(States.PERCEPT_NO_WUMPUS, cell)
-                            self.kb.add_clause([literal(WUMPUS, n.x, n.y, False)])
                         else:
-                            if n not in uncertain_neighbors:
-                                uncertain_neighbors.append(n)
+                            tmp_neighbors.append(n)
 
             if cell.has_stench():
                 '''
-                Snow lands on top
+                Kill all
                 '''
 
                 adj_list = [
@@ -375,63 +388,61 @@ class AgentBrain:
                     if n.is_wumpus:
                         self.__add_action(
                             States.PERCEPT_WUMPUS_KILLED, cell)
-                        n.kill_wumpus()
-                        cell.update_stench()
-                        self.__kill_wumpus(n)
+                        self.wumpus_map.kill_wumpus(n.x, n.y)
 
-                        if not cell.has_stench():
-                            for a in adj_list:
-                                if a.parent is None:
-                                    a.parent = cell
-                                    cell.children.append(a)
+                        if n.parent is None:
+                            n.parent = cell
+                            cell.children.append(n)
 
-                            break
-            
-            self.kb.remove_clause([literal(STENCH, cell.x, cell.y, True)])
-            self.kb.add_clause([literal(STENCH, cell.x, cell.y, False)])      
+                    if not cell.has_stench():
+                        clause = [literal(STENCH, cell.x, cell.y, False)]
 
-            pit_cells = []
+                        for neighbor in self.__get_neighbors(cell):
+                            clause.append(
+                                literal(WUMPUS, neighbor.x, neighbor.y, True))
+
+                        self.kb.remove_clause(clause)
+
+                        self.kb.remove_clause([
+                            literal(STENCH, cell.x, cell.y, True)
+                        ])
+
+                        self.kb.add_clause([
+                            literal(STENCH, cell.x, cell.y, False)
+                        ])
+
+                        break
+
             if cell.is_breeze:
                 for neighbor in neighbors:
                     self.__rotate(self.__get_direction(neighbor))
-                    # print(self.kb.clauses)
-
                     if self.kb.infer(literal(PIT, neighbor.x, neighbor.y, False)):
                         self.__add_action(States.DETECTED_PIT, cell)
-
                         self.__add_percept(neighbor)
-                        neighbor.is_explored = True
 
-                        neighbor.parent = cell
-                        pit_cells.append(neighbor)
+                        neighbor.is_explored = True
+                        neighbor.parent = neighbor.parent
+
+                        tmp_neighbors.append(neighbor)
                     elif self.kb.infer(literal(PIT, neighbor.x, neighbor.y, True)):
-                        # print(self.kb.clauses)
                         self.__add_action(States.PERCEPT_NO_PIT, cell)
                     else:
-                        if neighbor not in uncertain_neighbors:
-                            uncertain_neighbors.append(neighbor)
+                        tmp_neighbors.append(neighbor)
 
-            uncertain_neighbors = list(set(uncertain_neighbors))
-
-            for u in uncertain_neighbors:
-                if u in neighbors:
-                    neighbors.remove(u)
+        tmp_neighbors = list(set(tmp_neighbors))
+        for u in tmp_neighbors:
+            neighbors.remove(u)
 
         for n in neighbors:
             if n.parent is None:
                 n.parent = cell
                 cell.children.append(n)
 
-            # self.kb.add_clause([literal(WUMPUS, n.x, n.y, False)])
-            # self.kb.add_clause([literal(PIT, n.x, n.y, False)])
-
         neighbors = cell.children
         unvisited_neighbors = [n for n in neighbors if n.is_explored == False]
         visited_neighbors = [n for n in neighbors if n.is_explored == True]
 
-        # Let the agent explore the unvisited neighbors first
         neighbors = unvisited_neighbors + visited_neighbors
-
         for adj in neighbors:
             self.__move_from_to(adj)
             self.cur_pos = adj
@@ -459,3 +470,6 @@ class AgentBrain:
 
         self.__a_star(self.cur_pos, self.goal)
         self.__add_action(States.CLIMB, self.goal)
+
+        print('Path:', self.path)
+        print('Score:', self.score)

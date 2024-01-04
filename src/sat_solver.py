@@ -20,7 +20,7 @@ class KnowledgeBase:
         sat = self.__sat_solver(clauses, [])
 
         return sat is None
-    
+
     def __literal_negation(self, literal):
         if literal[0] == '-':
             return literal[1:]
@@ -68,12 +68,11 @@ class KnowledgeBase:
                 return self.__sat_solver([clause for clause in clauses if literal not in clause],
                                          assignment + [literal])
 
-        # literal_heuristic = {
-        #     literal: self.__score(literal, clauses)
-        #     for literal in literals
-        # }
-
-        # literal = max(literal_heuristic, key=literal_heuristic.get)
+        literal_heuristic = {
+            literal: self.__score(literal, clauses)
+            for literal in literals
+        }
+        literal = max(literal_heuristic, key=literal_heuristic.get)
         literal = literals[0]
 
         result = self.__sat_solver([clause for clause in clauses if literal not in clause],
