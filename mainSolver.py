@@ -13,6 +13,9 @@ direction = 0               # Right: 0      Up: 1       Left: 2     Down: 3
 total_score = 0
 frontier = []
 
+step_record = []
+percept_record = []
+
 # Explain for percept_state: ( visited, stench, wumpus, breeze, pit )
 # visited   :   [ 0, 1 ]    -> not visited | visited
 # stench    :   [ 0, 4 ]    -> number of hidden wumpus around ( maybe )     
@@ -103,7 +106,7 @@ def UpdatePercept( current_position, index, value ):
     percept_state[current_position[0]][current_position[1]] = ( v, s, w, b, p )
 
 def UpdateDanger( current_position, index ):
-    global percept_state
+    global percept_state, percept_record
 
     if( index not in [W, P] ): return
     current_x, current_y = current_position
@@ -119,6 +122,16 @@ def UpdateDanger( current_position, index ):
             updateValue = -1
             break
         updateValue += 1
+
+    if( percept_state[current_x][current_y][index] == None and updateValue > 0 ):
+        notify = 'ACTION    States.PERCEPT_'
+        if( index == W ): 
+            notify += 'WUMPUS '
+            percept_record.append( f'W? {current_x} {current_y}' )
+        else: 
+            notify += 'PIT '
+            percept_record.append( f'P? {current_x} {current_y}' )
+        print( notify, current_x, current_y )
     
     if( updateValue == 0 ): updateValue = None
     if( updateValue == -1 ): updateValue = 0
@@ -162,19 +175,29 @@ def UpdateSmell( current_position ):
     
 def EntailDanger( current_position ):
 
-    global frontier
+    global frontier, percept_record
 
     current_x, current_y = current_position
 
     if( percept_state[current_x][current_y][S] == 1 ):
         for _x, _y in GetNeighbor( current_position ): 
             if( percept_state[_x][_y][W] != 0 ): 
+                if( percept_state[_x][_y][W] != 5 ):
+                    print('ACTION   States.DETECT_WUMPUS ', _x, _y )
+                    print('ACTION   States.DETECT_NO_PIT ', _x, _y )
+                    percept_record.append( f'W {_x} {_y}' )
+                    percept_record.append( f'~P {_x} {_y}' )
                 UpdatePercept( ( _x, _y ), W, 5 )
                 UpdatePercept( ( _x, _y ), P, 0 )
     
     if( percept_state[current_x][current_y][B] == 1 ):
         for _x, _y in GetNeighbor( current_position ): 
-            if( percept_state[_x][_y][P] != 0 ): 
+            if( percept_state[_x][_y][P] != 0 ):
+                if( percept_state[_x][_y][P] != 5 ): 
+                    print('ACTION   States.DETECT_NO_WUMPUS ', _x, _y )
+                    print('ACTION   States.DETECT_PIT ', _x, _y )
+                    percept_record.append( f'~W {_x} {_y}' )
+                    percept_record.append( f'P {_x} {_y}' )
                 UpdatePercept( ( _x, _y ), W, 0 )
                 UpdatePercept( ( _x, _y ), P, 5 )
 
@@ -226,7 +249,7 @@ def FindPath( Goal ):
     return path
 
 def MoveOneStep( position ):
-    global agent_position, total_score
+    global agent_position, total_score, step_record
 
     if( position == agent_position ): return
     total_score -= 10
@@ -236,37 +259,43 @@ def MoveOneStep( position ):
     ReceivePercept( agent_position )
 
     print( 'ACTION   States.FORWARD ', agent_position[0], agent_position[1] )
+    step_record.append( f'ACTION States.FORWARD {agent_position[0]} {agent_position[1]}')
     print( 'Score: ', total_score )
 
 def ShotArrow( position ):
-    global map_state, percept_state, total_score
+    global map_state, percept_state, total_score, step_record, percept_record
 
     UpdatePercept( position, W, 0 )
     total_score -= 100
 
     print('ACTION   States.SHOT ', agent_position[0], agent_position[1])
+    step_record.append( f'ACTION    States.SHOT {agent_position[0]} {agent_position[1]}')
     print('Score: ', total_score)
 
     if( CheckState( position, W ) ): 
         map_state[position[0]][position[1]] ^= ( 1 << W )
         UpdateSmell( position )
-        print('Wumpus screammmmmmmmm')
+        print('ACTION   States.PERCEPT_WUMPUS_KILLED ', position[0], position[1] )
+        step_record.append( f'ACTION    States.PERCEPT_WUMPUS_KILLED {position[0]} {position[1]}')
+        percept_record.append(f'~W {position[0]} {position[1]}')
+        percept_record.append(f'~P {position[0]} {position[1]}')
         return True
     
     return False
 
 def CollectGold( position ):
-    global map_state, total_score
+    global map_state, total_score, step_record
 
     if( CheckState( position, G ) ):
         map_state[position[0]][position[1]] ^= ( 1 << G )
         total_score += 1000
         print('ACTION   States.COLLECT ', agent_position[0], agent_position[1])
+        step_record.append(f'ACTION States.COLLECT {agent_position[0]} {agent_position[1]}')
         print('Score: ', total_score )
 
 def TurnAround( position, goal_position ):
 
-    global direction
+    global direction, step_record
     direct_map = [ ( 0, 1 ), ( -1, 0 ), ( 0, -1 ), ( 1, 0 ) ]
     direct = ( goal_position[0] - position[0], goal_position[1] - position[1] )
 
@@ -276,15 +305,19 @@ def TurnAround( position, goal_position ):
     if( direct == direct_map[(direction + 1) % 4] ):
         direction = (direction + 1) % 4
         print('ACTION   States.LEFT ', agent_position[0], agent_position[1])
+        step_record.append(f'ACTION States.LEFT {agent_position[0]} {agent_position[1]}')
         return
     if( direct == direct_map[(direction + 3) % 4] ):
         direction = (direction + 3) % 4
         print('ACTION   States.RIGHT ', agent_position[0], agent_position[1])
+        step_record.append(f'ACTION States.RIGHT {agent_position[0]} {agent_position[1]}')
         return
     
     direction = ( direction + 2 ) % 4
     print('ACTION   States.RIGHT ', agent_position[0], agent_position[1])
     print('ACTION   States.RIGHT ', agent_position[0], agent_position[1])
+    step_record.append(f'ACTION States.RIGHT {agent_position[0]} {agent_position[1]}')
+    step_record.append(f'ACTION States.RIGHT {agent_position[0]} {agent_position[1]}')
     return
 
 
@@ -346,17 +379,35 @@ def Solver():
 
 # ============================================================= End Game ====================================================================
 def EndGame():
-    print( "You die")
+    global total_score, step_record
+    total_score -= 10000
+    print( 'ACTION  States.FALL_INTO_PIT ', agent_position[0], agent_position[1])
+    step_record.append(f'ACTION States.FALL_INTO_PIT {agent_position[0]} {agent_position[1]}')
+    print( 'Total score: ', total_score )
+    SaveFile()
     exit()
 
 def Win():
-    global total_score
+    global total_score, step_record
 
     total_score += 10
 
-    print( 'Exit dungeon' )
-    print( 'Total score: ', total_score )
+    print( 'ACTION  States.CLIMB ', agent_position[0], agent_position[1] )
+    step_record.append(f'ACTION States.CLIMB {agent_position[0]} {agent_position[1]}')
+    print( 'Score: ', total_score )
+    SaveFile()
     exit()
+
+def SaveFile():
+    with open('percept.txt', 'w') as file:
+        for item in percept_record:
+            file.write(item + '\n')
+    print('File saved: percept.txt')
+
+    with open('action.txt', 'w') as file:
+        for item in step_record:
+            file.write(item + '\n')
+    print('File saved: action.txt')
 # ===========================================================================================================================================
 
 def PreProcess() :
@@ -393,7 +444,7 @@ def PreProcess() :
 
 def ReceivePercept( current_position ):
 
-    global percept_state, frontier
+    global percept_state, frontier, step_record, percept_record
 
     current_x, current_y = current_position
     
@@ -421,7 +472,16 @@ def ReceivePercept( current_position ):
 
         for position in GetNeighbor( current_position ):
 
+            if( percept_state[position[0]][position[1]][W] != 0 ): 
+                print('ACTION   States.DETECT_NO_WUMPUS', position[0], position[1] )
+                step_record.append(f'ACTION States.DETECT_NO_WUMPUS {position[0]} {position[1]}')
+                percept_record.append(f'~W {position[0]} {position[1]}')
+
             UpdatePercept( position, W, 0 )
+            if( percept_state[position[0]][position[1]][P] != 0 ):
+                print('ACTION   States.DETECT_NO_PIT', position[0], position[1] )
+                step_record.append(f'ACTION States.DETECT_NO_PIT {position[0]} {position[1]}')
+                percept_record.append(f'~P {position[0]} {position[1]}')
             UpdatePercept( position, P, 0 )
         
         percept_state[current_x][current_y] = ( visited, stench, wumpus, breeze, pit )
@@ -434,7 +494,7 @@ def ReceivePercept( current_position ):
 
     # Current position is stench
     if( CheckState( current_position, S ) ):
-
+        percept_state.append(f'S {current_x} {current_y}')
         for _x, _y in GetNeighbor( current_position ):
 
             if( percept_state[_x][_y][0] == 1 ): continue
@@ -446,6 +506,8 @@ def ReceivePercept( current_position ):
 
     # Current position is breeze
     if( CheckState( current_position, B ) ):
+
+        percept_state.append(f'B {current_x} {current_y}')
 
         for _x, _y in GetNeighbor( current_position ):
 
