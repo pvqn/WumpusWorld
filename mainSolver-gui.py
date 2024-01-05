@@ -32,7 +32,6 @@ visited_position= set()
 
 def draw(visited_position, player_position, map_state):
     win.fill(BLACK)
-    print(map_state)
     # Draw the visited cells
     for cell in visited_position:
         pygame.draw.rect(win, WHITE, (cell[1]*CELL_SIZE, cell[0]*CELL_SIZE, CELL_SIZE, CELL_SIZE))
@@ -50,10 +49,6 @@ def draw(visited_position, player_position, map_state):
             text = font.render('s', True, (0, 0, 255))
             win.blit(text, (cell[1]*CELL_SIZE, cell[0]*CELL_SIZE))
         
-            
-            
-
-    print(player_direction)
     text=font.render(player_direction, True, BLACK)
     text_rect = text.get_rect(center=(player_position[1]*CELL_SIZE + CELL_SIZE//2, player_position[0]*CELL_SIZE + CELL_SIZE//2))
     win.blit(text, text_rect)
@@ -62,7 +57,6 @@ def draw(visited_position, player_position, map_state):
 def get_player_direction(state):
     global player_direction
 
-    print(player_direction)
     if state == 'Left':
         if player_direction == '^':
             player_direction = '<'
@@ -336,7 +330,7 @@ def MoveOneStep( position ):
         time.sleep(0.5)
     ReceivePercept( agent_position )
 
-    print( 'ACTION   States.FORWARD ', agent_position[0], agent_position[1] )
+    print( 'ACTION   States.FORWARD ', 9-agent_position[0], agent_position[1] )
     visited_position.add(agent_position)
     get_player_direction('Forward')
     draw(visited_position, agent_position, map_state)
@@ -349,7 +343,7 @@ def ShotArrow( position ):
     UpdatePercept( position, W, 0 )
     total_score -= 100
 
-    print('ACTION   States.SHOT ', agent_position[0], agent_position[1])
+    print('ACTION   States.SHOT ', 9- agent_position[0], agent_position[1])
     get_player_direction('Shot')
     draw(visited_position, agent_position, map_state)
     time.sleep(0.5)
@@ -372,7 +366,7 @@ def CollectGold( position ):
         
         map_state[position[0]][position[1]] ^= ( 1 << G )
         total_score += 1000
-        print('ACTION   States.COLLECT ', agent_position[0], agent_position[1])
+        print('ACTION   States.COLLECT ',9- agent_position[0], agent_position[1])
         print('Score: ', total_score )
         return True
     return False
@@ -389,25 +383,25 @@ def TurnAround( position, goal_position ):
     if( direct == direct_map[direction] ): return
     if( direct == direct_map[(direction + 1) % 4] ):
         direction = (direction + 1) % 4
-        print('ACTION   States.LEFT ', agent_position[0], agent_position[1])
+        print('ACTION   States.LEFT ', 9-agent_position[0], agent_position[1])
         get_player_direction('Left')
         draw(visited_position, agent_position, map_state)
         time.sleep(0.5)
         return
     if( direct == direct_map[(direction + 3) % 4] ):
         direction = (direction + 3) % 4
-        print('ACTION   States.RIGHT ', agent_position[0], agent_position[1])
+        print('ACTION   States.RIGHT ',9- agent_position[0], agent_position[1])
         get_player_direction('Right')
         draw(visited_position, agent_position, map_state)
         time.sleep(0.5)
         return 
     
     direction = ( direction + 2 ) % 4
-    print('ACTION   States.RIGHT ', agent_position[0], agent_position[1])
+    print('ACTION   States.RIGHT ',9- agent_position[0], agent_position[1])
     get_player_direction('Right')
     draw(visited_position,agent_position, map_state)
     time.sleep(0.5)
-    print('ACTION   States.RIGHT ', agent_position[0], agent_position[1])
+    print('ACTION   States.RIGHT ',9- agent_position[0], agent_position[1])
     get_player_direction('Right')
     draw(visited_position,agent_position, map_state)
     time.sleep(0.5)
