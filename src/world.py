@@ -2,6 +2,7 @@ from copy import deepcopy
 
 from const import Directions
 
+
 def literal(type, x, y, pos):
     if not pos:
         return f'-{type}({x},{y})'
@@ -51,7 +52,8 @@ class WumpusWorld:
         self.init_map = None
 
     def draw_map(self, direcion, x, y):
-        game_map = [['' for _ in range(self.__size)] for _ in range(self.__size)]
+        game_map = [['' for _ in range(self.__size)]
+                    for _ in range(self.__size)]
 
         for i in range(self.__size):
             for j in range(self.__size):
@@ -65,35 +67,32 @@ class WumpusWorld:
                         info += '^'
                     elif direcion == Directions.DOWN:
                         info += 'v'
-                
+
                 if self.world[i][j].is_wumpus:
                     info += 'W'
-                
+
                 if self.world[i][j].is_pit:
                     info += 'P'
-                
+
                 if self.world[i][j].is_gold:
                     info += 'G'
-                
+
                 if self.world[i][j].is_breeze:
                     info += 'B'
-                
+
                 if self.world[i][j].has_stench():
                     info += 'S'
-                
-                if self.world[i][j].is_explored:
-                    info += 'E'
-                
+
                 if info == '':
-                    info = '-'
-                
+                    info = 'E' if self.world[i][j].is_explored else '-'
+
                 game_map[i][j] = info
-    
+
         to_str = ''
 
         for row in game_map:
             to_str += ''.join(s.center(5) for s in row) + '\n'
-        
+
         return to_str
 
     def dl_to_tb(self, i, j):
@@ -149,7 +148,7 @@ class WumpusWorld:
                         pass
                     else:
                         raise Exception('Invalid character in map')
-        
+
         self.init_map = deepcopy(self.world)
 
     def is_goal(self, i, j):
