@@ -219,6 +219,8 @@ def NotKillThisWumpus( current_position ):
 
 def FindPath( Goal ):
 
+    if( Goal == agent_position ): return []
+
     expanded = Queue()
     visited = dict()
 
