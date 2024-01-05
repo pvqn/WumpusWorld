@@ -1,5 +1,6 @@
-import sys
+from copy import deepcopy
 
+from const import Directions
 
 def literal(type, x, y, pos):
     if not pos:
@@ -44,6 +45,57 @@ class WumpusWorld:
         self.world = []
         self.agent_pos = None
 
+        '''
+        For graphic
+        '''
+        self.init_map = None
+
+    def draw_map(self, direcion, x, y):
+        game_map = [['' for _ in range(self.__size)] for _ in range(self.__size)]
+
+        for i in range(self.__size):
+            for j in range(self.__size):
+                info = ''
+                if i == x and j == y:
+                    if direcion == Directions.RIGHT:
+                        info += '>'
+                    elif direcion == Directions.LEFT:
+                        info += '<'
+                    elif direcion == Directions.UP:
+                        info += '^'
+                    elif direcion == Directions.DOWN:
+                        info += 'v'
+                
+                if self.world[i][j].is_wumpus:
+                    info += 'W'
+                
+                if self.world[i][j].is_pit:
+                    info += 'P'
+                
+                if self.world[i][j].is_gold:
+                    info += 'G'
+                
+                if self.world[i][j].is_breeze:
+                    info += 'B'
+                
+                if self.world[i][j].has_stench():
+                    info += 'S'
+                
+                if self.world[i][j].is_explored:
+                    info += 'E'
+                
+                if info == '':
+                    info = '-'
+                
+                game_map[i][j] = info
+    
+        to_str = ''
+
+        for row in game_map:
+            to_str += ''.join(s.center(5) for s in row) + '\n'
+        
+        return to_str
+
     def dl_to_tb(self, i, j):
         return self.__size - i, j + 1
 
@@ -67,6 +119,10 @@ class WumpusWorld:
 
             for line in f:
                 line = line[:-1].split('.')
+
+                if len(line) != self.__size:
+                    raise Exception('Invalid map')
+
                 raw_map.append(line)
 
         for i in range(self.__size):
@@ -74,19 +130,27 @@ class WumpusWorld:
                 self.world[i][j].x = i
                 self.world[i][j].y = j
 
-                if raw_map[i][j] == 'A':
+                data = raw_map[i][j]
 
-                    self.world[i][j].is_agent = True
-                    self.agent_pos = self.world[i][j]
-                    self.world[i][j].parent = self.world[i][j]
-                elif raw_map[i][j] == 'W':
-                    self.world[i][j].is_wumpus = True
-                    self.__set_stench(i, j)
-                elif raw_map[i][j] == 'P':
-                    self.world[i][j].is_pit = True
-                    self.__set_breeze(i, j)
-                elif raw_map[i][j] == 'G':
-                    self.world[i][j].is_gold = True
+                for char in data:
+                    if char == 'A':
+                        self.world[i][j].is_agent = True
+                        self.agent_pos = self.world[i][j]
+                        self.world[i][j].parent = self.world[i][j]
+                    elif char == 'W':
+                        self.world[i][j].is_wumpus = True
+                        self.__set_stench(i, j)
+                    elif char == 'P':
+                        self.world[i][j].is_pit = True
+                        self.__set_breeze(i, j)
+                    elif char == 'G':
+                        self.world[i][j].is_gold = True
+                    elif char == '-':
+                        pass
+                    else:
+                        raise Exception('Invalid character in map')
+        
+        self.init_map = deepcopy(self.world)
 
     def is_goal(self, i, j):
         return i == self.__size - 1 and j == 0

@@ -12,7 +12,7 @@ def main():
 
     output_file = open(output_path, 'w')
 
-    agent = AgentBrain(world, output_file=output_file, verbose=False)
+    agent = AgentBrain(world, output_file=output_file, verbose=True)
 
     agent.solve()
 
