@@ -127,10 +127,10 @@ def UpdateDanger( current_position, index ):
         notify = 'ACTION    States.PERCEPT_'
         if( index == W ): 
             notify += 'WUMPUS '
-            percept_record.append( f'W? {current_x} {current_y}' )
+            percept_record.append( f'W? {map_size - current_x} {current_y + 1}' )
         else: 
             notify += 'PIT '
-            percept_record.append( f'P? {current_x} {current_y}' )
+            percept_record.append( f'P? {map_size - current_x} {current_y + 1}' )
         print( notify, current_x, current_y )
     
     if( updateValue == 0 ): updateValue = None
@@ -185,8 +185,8 @@ def EntailDanger( current_position ):
                 if( percept_state[_x][_y][W] != 5 ):
                     print('ACTION   States.DETECT_WUMPUS ', _x, _y )
                     print('ACTION   States.DETECT_NO_PIT ', _x, _y )
-                    percept_record.append( f'W {_x} {_y}' )
-                    percept_record.append( f'~P {_x} {_y}' )
+                    percept_record.append( f'W {map_size - _x} {_y + 1}' )
+                    percept_record.append( f'~P {map_size - _x} {_y + 1}' )
                 UpdatePercept( ( _x, _y ), W, 5 )
                 UpdatePercept( ( _x, _y ), P, 0 )
     
@@ -196,8 +196,8 @@ def EntailDanger( current_position ):
                 if( percept_state[_x][_y][P] != 5 ): 
                     print('ACTION   States.DETECT_NO_WUMPUS ', _x, _y )
                     print('ACTION   States.DETECT_PIT ', _x, _y )
-                    percept_record.append( f'~W {_x} {_y}' )
-                    percept_record.append( f'P {_x} {_y}' )
+                    percept_record.append( f'~W {map_size - _x} {_y + 1}' )
+                    percept_record.append( f'P {map_size - _x} {_y + 1}' )
                 UpdatePercept( ( _x, _y ), W, 0 )
                 UpdatePercept( ( _x, _y ), P, 5 )
 
@@ -259,7 +259,7 @@ def MoveOneStep( position ):
     ReceivePercept( agent_position )
 
     print( 'ACTION   States.FORWARD ', agent_position[0], agent_position[1] )
-    step_record.append( f'ACTION States.FORWARD {agent_position[0]} {agent_position[1]}')
+    step_record.append( f'ACTION States.FORWARD {map_size - agent_position[0]} {agent_position[1] + 1}')
     print( 'Score: ', total_score )
 
 def ShotArrow( position ):
@@ -269,16 +269,16 @@ def ShotArrow( position ):
     total_score -= 100
 
     print('ACTION   States.SHOT ', agent_position[0], agent_position[1])
-    step_record.append( f'ACTION    States.SHOT {agent_position[0]} {agent_position[1]}')
+    step_record.append( f'ACTION    States.SHOT {map_size - agent_position[0]} {agent_position[1] + 1}')
     print('Score: ', total_score)
 
     if( CheckState( position, W ) ): 
         map_state[position[0]][position[1]] ^= ( 1 << W )
         UpdateSmell( position )
         print('ACTION   States.PERCEPT_WUMPUS_KILLED ', position[0], position[1] )
-        step_record.append( f'ACTION    States.PERCEPT_WUMPUS_KILLED {position[0]} {position[1]}')
-        percept_record.append(f'~W {position[0]} {position[1]}')
-        percept_record.append(f'~P {position[0]} {position[1]}')
+        step_record.append( f'ACTION    States.PERCEPT_WUMPUS_KILLED {map_size - position[0]} {position[1]+ 1}')
+        percept_record.append(f'~W {map_size - position[0]} {position[1] + 1}')
+        percept_record.append(f'~P {map_size - position[0]} {position[1] + 1}')
         return True
     
     return False
@@ -290,7 +290,7 @@ def CollectGold( position ):
         map_state[position[0]][position[1]] ^= ( 1 << G )
         total_score += 1000
         print('ACTION   States.COLLECT ', agent_position[0], agent_position[1])
-        step_record.append(f'ACTION States.COLLECT {agent_position[0]} {agent_position[1]}')
+        step_record.append(f'ACTION States.COLLECT {map_size - agent_position[0]} {agent_position[1] + 1}')
         print('Score: ', total_score )
 
 def TurnAround( position, goal_position ):
@@ -305,19 +305,19 @@ def TurnAround( position, goal_position ):
     if( direct == direct_map[(direction + 1) % 4] ):
         direction = (direction + 1) % 4
         print('ACTION   States.LEFT ', agent_position[0], agent_position[1])
-        step_record.append(f'ACTION States.LEFT {agent_position[0]} {agent_position[1]}')
+        step_record.append(f'ACTION States.LEFT {map_size - agent_position[0]} {agent_position[1] + 1}')
         return
     if( direct == direct_map[(direction + 3) % 4] ):
         direction = (direction + 3) % 4
         print('ACTION   States.RIGHT ', agent_position[0], agent_position[1])
-        step_record.append(f'ACTION States.RIGHT {agent_position[0]} {agent_position[1]}')
+        step_record.append(f'ACTION States.RIGHT {map_size - agent_position[0]} {agent_position[1] + 1}')
         return
     
     direction = ( direction + 2 ) % 4
     print('ACTION   States.RIGHT ', agent_position[0], agent_position[1])
     print('ACTION   States.RIGHT ', agent_position[0], agent_position[1])
-    step_record.append(f'ACTION States.RIGHT {agent_position[0]} {agent_position[1]}')
-    step_record.append(f'ACTION States.RIGHT {agent_position[0]} {agent_position[1]}')
+    step_record.append(f'ACTION States.RIGHT {map_size - agent_position[0]} {agent_position[1] + 1}')
+    step_record.append(f'ACTION States.RIGHT {map_size - agent_position[0]} {agent_position[1] + 1}')
     return
 
 
@@ -382,7 +382,7 @@ def EndGame():
     global total_score, step_record
     total_score -= 10000
     print( 'ACTION  States.FALL_INTO_PIT ', agent_position[0], agent_position[1])
-    step_record.append(f'ACTION States.FALL_INTO_PIT {agent_position[0]} {agent_position[1]}')
+    step_record.append(f'ACTION States.FALL_INTO_PIT {map_size - agent_position[0]} {agent_position[1] + 1}')
     print( 'Total score: ', total_score )
     SaveFile()
     exit()
@@ -393,7 +393,7 @@ def Win():
     total_score += 10
 
     print( 'ACTION  States.CLIMB ', agent_position[0], agent_position[1] )
-    step_record.append(f'ACTION States.CLIMB {agent_position[0]} {agent_position[1]}')
+    step_record.append(f'ACTION States.CLIMB {map_size - agent_position[0]} {agent_position[1] + 1}')
     print( 'Score: ', total_score )
     SaveFile()
     exit()
@@ -474,14 +474,14 @@ def ReceivePercept( current_position ):
 
             if( percept_state[position[0]][position[1]][W] != 0 ): 
                 print('ACTION   States.DETECT_NO_WUMPUS', position[0], position[1] )
-                step_record.append(f'ACTION States.DETECT_NO_WUMPUS {position[0]} {position[1]}')
-                percept_record.append(f'~W {position[0]} {position[1]}')
+                step_record.append(f'ACTION States.DETECT_NO_WUMPUS {map_size - position[0]} {position[1] + 1}')
+                percept_record.append(f'~W {map_size - position[0]} {position[1] + 1}')
 
             UpdatePercept( position, W, 0 )
             if( percept_state[position[0]][position[1]][P] != 0 ):
                 print('ACTION   States.DETECT_NO_PIT', position[0], position[1] )
-                step_record.append(f'ACTION States.DETECT_NO_PIT {position[0]} {position[1]}')
-                percept_record.append(f'~P {position[0]} {position[1]}')
+                step_record.append(f'ACTION States.DETECT_NO_PIT {map_size - position[0]} {position[1] + 1}')
+                percept_record.append(f'~P {map_size - position[0]} {position[1] + 1}')
             UpdatePercept( position, P, 0 )
         
         percept_state[current_x][current_y] = ( visited, stench, wumpus, breeze, pit )
@@ -494,7 +494,7 @@ def ReceivePercept( current_position ):
 
     # Current position is stench
     if( CheckState( current_position, S ) ):
-        percept_state.append(f'S {current_x} {current_y}')
+        percept_state.append(f'S {map_size - current_x} {current_y + 1}')
         for _x, _y in GetNeighbor( current_position ):
 
             if( percept_state[_x][_y][0] == 1 ): continue
@@ -507,7 +507,7 @@ def ReceivePercept( current_position ):
     # Current position is breeze
     if( CheckState( current_position, B ) ):
 
-        percept_state.append(f'B {current_x} {current_y}')
+        percept_state.append(f'B {map_size - current_x} {current_y + 1}')
 
         for _x, _y in GetNeighbor( current_position ):
 
